@@ -1,90 +1,226 @@
-Maestro - Example Session
-=========================
+Maestro - Example Sessions
+==========================
 
-This is a typical interaction showing task input, recommendation,
-constraint negotiation, and mock execution.
+Three examples showing the core workflow: task input, recommendation,
+constraint negotiation, and execution.
 
-----------------------------------------------------------------------
+======================================================================
+Example 1: Web Scraping
+======================================================================
 
 ╭──────────────────────────────────────────╮
 │              Maestro                     │
 │   Intelligent AI Tool Orchestration      │
 ╰──────────────────────────────────────────╯
-  Describe a scraping task, and I'll show you the best approach.
+  Describe a task (scraping, data analysis, or API integration),
+  and I'll show you the best approach.
 
 Maestro> Scrape 100 dive shop websites and extract pricing
+
+  (using regex parser)
 
   Understood: scrape 100 dive shops for pricing
 
   Analyzing task...
 
-📊 Recommendation: Hybrid Scrapy+Playwright
+  Here's my recommendation:
 
-  Strategy: Use Scrapy for static pages (~85%), Playwright for
-  JS-heavy sites (~15%), DeepSeek for data extraction.
+  Strategy: Scrapy + Playwright fallback + DeepSeek extraction
 
-  💰 Cost:    $0.53
-  ✨ Quality: 92%
-  ⏱️  Time:    12 min
+    💰 Cost: $0.18  ✅
+    ✨ Quality: 88%  ✅
+    ⏱️  Time: 1m 17s  ✅
 
-  Proceed? (yes / adjust / show options)
+  Other strategies available — say 'show options' to compare, or adjust
+  constraints like 'under $1' or 'faster'.
 
-Maestro> show options
+  Proceed with this approach? (yes / show options / adjust)
 
-  Option A: Budget Optimized
-    Scrapy-only, skip JS-heavy sites
-    💰 $0.03 ✅  ✨ 75% ✅  ⏱️ 8 min ✅
+Maestro> Can we do it for under $0.10?
 
-  Option B: Quality Optimized
-    Playwright for all sites + GPT-4o extraction
-    💰 $4.10 ✅  ✨ 98% ✅  ⏱️ 20 min ✅
-
-  Option C: Speed Optimized
-    Parallel Scrapy with async extraction
-    💰 $0.15 ✅  ✨ 82% ✅  ⏱️ 5 min ✅
-
-  Option D: Balanced ⭐ Recommended
-    Hybrid Scrapy+Playwright with DeepSeek
-    💰 $0.53 ✅  ✨ 92% ✅  ⏱️ 12 min ✅
-
-Maestro> Can we do it for under $0.30?
-
-  To meet your $0.30 budget, here are your options:
+  Here are your options:
 
   Option A: Budget Optimized
-    Scrapy-only, skip JS-heavy sites
-    💰 $0.03 ✅  ✨ 75% ✅  ⏱️ 8 min ✅
+    Scrapy-only crawling + DeepSeek extraction
+    💰 Cost: $0.03  ✅
+    ✨ Quality: 75%  ✅
+    ⏱️  Time: 84s  ✅
+    ℹ️  Scrapy handles crawling (free) and DeepSeek extracts data.
+    No JavaScript rendering — sites that require JS will fail.
 
-  Option B: Scope Reduction ⭐ Recommended
-    Full hybrid approach, 56 sites instead of 100
-    💰 $0.30 ✅  ✨ 92% ✅  ⏱️ 7 min ✅
+  Option B: Balanced ⭐ Recommended
+    Scrapy + Playwright fallback + DeepSeek extraction
+    💰 Cost: $0.18  ⚠️ $0.08 over budget
+    ✨ Quality: 88%  ✅
+    ⏱️  Time: 1m 17s  ✅
 
-  Option C: Balanced
-    Scrapy + selective Playwright
-    💰 $0.33 ⚠️ 10% over budget  ✨ 88% ✅  ⏱️ 10 min ✅
+  Option C: Quality Focused
+    Scrapy + Playwright fallback + Claude extraction
+    💰 Cost: $2.26  ⚠️ $2.16 over budget
+    ✨ Quality: 95%  ✅
+    ⏱️  Time: 1m 30s  ✅
 
-  Option D: Quality Optimized
-    Playwright + GPT-4o, all 100 sites
-    💰 $4.10 ⚠️ 1267% over budget  ✨ 98% ✅  ⏱️ 20 min ✅
+  Option D: Speed Optimized
+    Parallel Scrapy (3 workers) + DeepSeek extraction
+    💰 Cost: $0.03  ✅
+    ✨ Quality: 75%  ✅
+    ⏱️  Time: 51s  ✅
 
-Maestro> B
+  Option E: Scope Reduction
+    Balanced approach but 56 sites instead of 100
+    💰 Cost: $0.10  ✅
+    ✨ Quality: 88%  ✅
+    ⏱️  Time: 43s  ✅
 
-  ✅ Confirmed: Scope Reduction
-  Processing 56 dive shop sites with hybrid strategy...
+  Which option? (A/B/C/... or adjust constraints)
 
-  ⏳ Executing...
-  Progress: ████████████████████████████████████████ 56/56
-  Running cost: $0.28
+Maestro> E
+
+  Starting execution...
+  ⏳ Crawling with Scrapy (47 pages)   ████████████████████ 100%
+  ⏳ Rendering JS pages (9 pages)      ████████████████████ 100%
+  ⏳ Extracting data with DeepSeek     ████████████████████ 100%
 
   ✅ Complete!
-    💰 Final cost: $0.28
-    ✨ Quality:    93% (52/56 successful)
-    ⏱️  Time:       6m 42s
+    💰 Final cost: $0.09
+    ✨ Quality: 93% (52/56 successful)
+    ⏱️  Time: 0m 38s
 
-    Results saved to: output/maestro_result_20260206_143022.json
+  Results saved to: output/maestro_results_20260206_143022.json
 
   📚 Choice recorded for future recommendations.
 
   Another task? (yes/no) no
 
   Goodbye!
+
+======================================================================
+Example 2: Data Analysis
+======================================================================
+
+Maestro> Analyze 500 rows of customer data for trends
+
+  (using regex parser)
+
+  Understood: analyze 500 rows of customer data for trends
+
+  Analyzing task...
+
+  Here's my recommendation:
+
+  Strategy: polars processing + DeepSeek analysis
+
+    💰 Cost: $0.00  ✅
+    ✨ Quality: 79%  ✅
+    ⏱️  Time: 4s  ✅
+
+  Proceed with this approach? (yes / show options / adjust)
+
+Maestro> better quality
+
+  Here are your options:
+
+  Option A: Budget Optimized
+    pandas processing + DeepSeek analysis
+    💰 Cost: $0.00  ✅
+    ✨ Quality: 75%  ✅
+    ⏱️  Time: 4s  ✅
+
+  Option B: Balanced ⭐ Recommended
+    polars processing + DeepSeek analysis
+    💰 Cost: $0.00  ✅
+    ✨ Quality: 79%  ✅
+    ⏱️  Time: 4s  ✅
+
+  Option C: Quality Focused
+    polars processing + Claude analysis
+    💰 Cost: $0.01  ✅
+    ✨ Quality: 86%  ✅
+    ⏱️  Time: 6s  ✅
+
+  Option D: Speed Optimized
+    parallel polars (3 workers) + DeepSeek analysis
+    💰 Cost: $0.00  ✅
+    ✨ Quality: 79%  ✅
+    ⏱️  Time: 4s  ✅
+
+  Which option? (A/B/C/... or adjust constraints)
+
+Maestro> C
+
+  Starting execution...
+  ⏳ Loading data (100 rows)           ████████████████████ 100%
+  ⏳ Processing with polars (500 rows) ████████████████████ 100%
+  ⏳ Analyzing with Claude (500 rows)  ████████████████████ 100%
+
+  ✅ Complete!
+    💰 Final cost: $0.01
+    ✨ Quality: 91% (458/500 successful)
+    ⏱️  Time: 0m 5s
+
+  Results saved to: output/maestro_results_20260206_143145.json
+
+======================================================================
+Example 3: API Integration
+======================================================================
+
+Maestro> Fetch pricing from 20 hotel booking APIs
+
+  (using regex parser)
+
+  Understood: call 20 hotel booking APIs for pricing
+
+  Analyzing task...
+
+  Here's my recommendation:
+
+  Strategy: httpx (async) + DeepSeek parsing
+
+    💰 Cost: $0.01  ✅
+    ✨ Quality: 86%  ✅
+    ⏱️  Time: 9s  ✅
+
+  Proceed with this approach? (yes / show options / adjust)
+
+Maestro> faster
+
+  Here are your options:
+
+  Option A: Budget Optimized
+    requests (sequential) + DeepSeek parsing
+    💰 Cost: $0.01  ✅
+    ✨ Quality: 81%  ✅
+    ⏱️  Time: 17s  ✅
+
+  Option B: Balanced ⭐ Recommended
+    httpx (async) + DeepSeek parsing
+    💰 Cost: $0.01  ✅
+    ✨ Quality: 86%  ✅
+    ⏱️  Time: 9s  ✅
+
+  Option C: Quality Focused
+    httpx (async) + Claude parsing
+    💰 Cost: $0.07  ✅
+    ✨ Quality: 91%  ✅
+    ⏱️  Time: 12s  ✅
+
+  Option D: Speed Optimized
+    httpx parallel (3 workers) + DeepSeek parsing
+    💰 Cost: $0.01  ✅
+    ✨ Quality: 86%  ✅
+    ⏱️  Time: 8s  ✅
+
+  Which option? (A/B/C/... or adjust constraints)
+
+Maestro> D
+
+  Starting execution...
+  ⏳ Calling APIs with httpx (20 endpoints)    ████████████████████ 100%
+  ⏳ Parsing responses with DeepSeek (20)      ████████████████████ 100%
+
+  ✅ Complete!
+    💰 Final cost: $0.01
+    ✨ Quality: 90% (18/20 successful)
+    ⏱️  Time: 0m 7s
+
+  Results saved to: output/maestro_results_20260206_143312.json

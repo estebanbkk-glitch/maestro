@@ -70,6 +70,6 @@ class ExecutionResult:
     actual_quality: float
     actual_time_seconds: int
     success: bool
-    pages_processed: int
-    pages_succeeded: int
+    items_processed: int
+    items_succeeded: int
     output_file: str

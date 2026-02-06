@@ -39,6 +39,24 @@ claude:
   quality: 0.96                   # Excellent extraction quality
   description: "Premium LLM for data extraction. Higher quality but significantly more expensive."
 
+pandas:
+  name: pandas
+  type: data_processor
+  cost_per_1k_rows: 0.0
+  success_rate: 0.95
+  speed_rows_per_second: 10000
+  quality: 0.85
+  description: "Python data processing library. Free, handles most tabular data well."
+
+polars:
+  name: polars
+  type: data_processor
+  cost_per_1k_rows: 0.0
+  success_rate: 0.97
+  speed_rows_per_second: 50000
+  quality: 0.90
+  description: "High-performance DataFrame library. Free, significantly faster than pandas."
+
 gpt4o:
   name: GPT-4o
   type: llm_extractor
@@ -49,3 +67,21 @@ gpt4o:
   pages_per_second: 2.5           # API throughput
   quality: 0.93                   # Very good extraction
   description: "OpenAI's flagship model. Good balance of quality and cost for extraction."
+
+httpx:
+  name: httpx
+  type: http_client
+  cost_per_request: 0.0
+  success_rate: 0.95
+  speed_requests_per_second: 10.0
+  quality: 0.90
+  description: "Async HTTP client. Free, fast, handles concurrent requests well."
+
+requests:
+  name: requests
+  type: http_client
+  cost_per_request: 0.0
+  success_rate: 0.92
+  speed_requests_per_second: 2.0
+  quality: 0.85
+  description: "Simple HTTP client. Free, easy to use, but sequential and slower."

@@ -11,12 +11,31 @@ from rich.panel import Panel
 from rich.text import Text
 
 
+class _NonClosingBufferWrapper(io.RawIOBase):
+    """Wraps a buffer without closing it when the wrapper is garbage-collected."""
+
+    def __init__(self, buf: io.RawIOBase | io.BufferedIOBase) -> None:
+        self._buf = buf
+
+    def write(self, data: bytes) -> int:  # type: ignore[override]
+        return self._buf.write(data)
+
+    def writable(self) -> bool:
+        return True
+
+
 def _make_console() -> Console:
     """Create a Rich Console that handles Windows encoding gracefully."""
     # On Windows, piped output may use cp1252 which can't handle emojis.
-    # Force UTF-8 output when not in a real terminal.
+    # Force UTF-8 output when not in a real terminal, but only when
+    # stdout.buffer is available (not in test runners that replace stdout).
     if sys.platform == "win32" and not sys.stdout.isatty():
-        return Console(file=io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8"))
+        if hasattr(sys.stdout, "buffer"):
+            try:
+                safe_buf = _NonClosingBufferWrapper(sys.stdout.buffer)
+                return Console(file=io.TextIOWrapper(safe_buf, encoding="utf-8", line_buffering=True))
+            except (ValueError, AttributeError):
+                pass
     return Console()
 
 from maestro.analyzer import TaskAnalyzer
@@ -31,7 +50,7 @@ from maestro.validator import ConstraintValidator
 class MaestroCLI:
     """Interactive CLI that drives the full negotiation → execution flow."""
 
-    def __init__(self) -> None:
+    def __init__(self, demo: bool = False) -> None:
         self.console = _make_console()
         self.analyzer = TaskAnalyzer()
         self.generator = OptionGenerator()
@@ -39,10 +58,15 @@ class MaestroCLI:
         self.negotiator = Negotiator()
         self.executor = MockExecutor(self.console)
         self.learner = PreferenceLearner()
+        self.demo = demo
+        self.demo_scenarios = self._build_demo_scenarios() if demo else []
 
     def run(self) -> None:
         """Main loop: welcome → input → analyze → negotiate → execute → done."""
         self._print_welcome()
+        if self.demo:
+            self._run_demo()
+            return
 
         while True:
             # Get task from user
@@ -50,17 +74,24 @@ class MaestroCLI:
             if task is None:
                 continue
 
+            # Check learned preferences
+            preferred = self.learner.get_preferred_strategy(task.type)
+
             # Generate initial options
             self.console.print("\n  [dim]Analyzing task...[/dim]\n")
-            options = self.generator.generate(task)
+            options = self.generator.generate(task, preferred_strategy=preferred)
             constraint: Constraint | None = None
 
             # Show recommendation
             output = self.negotiator.format_recommendation(options)
             self.console.print(output)
+            if preferred:
+                self.console.print(
+                    f"  [dim]📚 Based on your history, recommending: {preferred}[/dim]\n"
+                )
 
             # Enter negotiation loop
-            chosen = self._negotiation_loop(task, options, constraint)
+            chosen = self._negotiation_loop(task, options, constraint, preferred)
             if chosen is None:
                 self.console.print("\n  [dim]Task cancelled.[/dim]\n")
                 if not self._ask_continue():
@@ -68,7 +99,13 @@ class MaestroCLI:
                 continue
 
             # Execute
-            result = self.executor.execute(task, chosen)
+            try:
+                result = self.executor.execute(task, chosen)
+            except KeyboardInterrupt:
+                self.console.print("\n\n  [yellow]Execution cancelled.[/yellow]\n")
+                if not self._ask_continue():
+                    break
+                continue
 
             # Learn from choice
             self.learner.record_choice(task, options, chosen, constraint, result)
@@ -91,7 +128,7 @@ class MaestroCLI:
             border_style="magenta",
             padding=(1, 4),
         ))
-        self.console.print("  Describe a scraping task, and I'll show you the best approach.\n")
+        self.console.print("  Describe a task (scraping, data analysis, or API integration), and I'll show you the best approach.\n")
 
     def _get_task(self) -> Task | None:
         """Prompt user for task description and parse it."""
@@ -108,19 +145,44 @@ class MaestroCLI:
         if user_input.lower() in ("quit", "exit", "q"):
             sys.exit(0)
 
+        if not self.analyzer.llm_available:
+            self.console.print("  [dim](using regex parser)[/dim]")
+
         task = self.analyzer.analyze(user_input)
         if task is None:
             self.console.print(
-                "\n  [yellow]I can help with web scraping tasks.[/yellow]"
-                "\n  Try something like: 'Scrape 100 dive shop websites and extract pricing'\n"
+                "\n  [yellow]I can help with scraping, data analysis, and API integration tasks.[/yellow]"
+                "\n  Try: 'Scrape 100 dive shop websites', 'Analyze 500 rows of customer data',"
+                "\n  or 'Fetch pricing from 20 hotel booking APIs'\n"
             )
+            return None
+
+        # Validate count
+        count = task.parameters.get("count", 0)
+        if not isinstance(count, (int, float)) or count <= 0:
+            self.console.print("\n  [yellow]Count must be a positive number. Please try again.[/yellow]\n")
             return None
 
         # Show what we parsed
         params = task.parameters
-        self.console.print(f"\n  [dim]Understood: scrape {params.get('count', '?')} "
-                          f"{params.get('domain', 'websites')}"
-                          f"{' for ' + str(params.get('target', '')) if params.get('target') else ''}[/dim]")
+        if task.type == "analysis":
+            self.console.print(
+                f"\n  [dim]Understood: analyze {params.get('count', '?')} rows"
+                f" of {params.get('source', 'data')}"
+                f"{' for ' + str(params.get('analysis_type', '')) if params.get('analysis_type') else ''}[/dim]"
+            )
+        elif task.type == "api":
+            self.console.print(
+                f"\n  [dim]Understood: call {params.get('count', '?')} "
+                f"{params.get('source', 'service')} APIs"
+                f"{' for ' + str(params.get('target', '')) if params.get('target') else ''}[/dim]"
+            )
+        else:
+            self.console.print(
+                f"\n  [dim]Understood: scrape {params.get('count', '?')} "
+                f"{params.get('domain', 'websites')}"
+                f"{' for ' + str(params.get('target', '')) if params.get('target') else ''}[/dim]"
+            )
         return task
 
     def _negotiation_loop(
@@ -128,6 +190,7 @@ class MaestroCLI:
         task: Task,
         options: list[Option],
         constraint: Constraint | None,
+        preferred_strategy: str | None = None,
     ) -> Option | None:
         """Handle the negotiation conversation. Returns chosen Option or None if cancelled."""
         show_all = False  # Start by showing just the recommendation
@@ -153,7 +216,7 @@ class MaestroCLI:
 
                 case UserIntent.ADJUST_BUDGET | UserIntent.ADJUST_QUALITY | UserIntent.ADJUST_TIME:
                     constraint = self.negotiator.build_constraint_from_adjustment(parsed, constraint)
-                    options = self._regenerate(task, constraint)
+                    options = self._regenerate(task, constraint, preferred_strategy)
                     self.console.print(self.negotiator.format_options(options))
                     show_all = True
 
@@ -161,11 +224,13 @@ class MaestroCLI:
                     if parsed.value is not None:
                         task = copy.deepcopy(task)
                         task.parameters["count"] = int(parsed.value)
-                        options = self._regenerate(task, constraint)
+                        options = self._regenerate(task, constraint, preferred_strategy)
                         self.console.print(self.negotiator.format_options(options))
                         show_all = True
                     else:
-                        self.console.print("\n  [yellow]How many sites? (e.g., 'only 50')[/yellow]")
+                        hints = {"analysis": "rows", "api": "endpoints", "scraping": "sites"}
+                        hint = hints.get(task.type, "items")
+                        self.console.print(f"\n  [yellow]How many {hint}? (e.g., 'only 50')[/yellow]")
 
                 case UserIntent.UNKNOWN:
                     # Check for "show options" signal
@@ -183,9 +248,14 @@ class MaestroCLI:
                             "\n    • Say [bold]quit[/bold] to cancel"
                         )
 
-    def _regenerate(self, task: Task, constraint: Constraint | None) -> list[Option]:
+    def _regenerate(
+        self,
+        task: Task,
+        constraint: Constraint | None,
+        preferred_strategy: str | None = None,
+    ) -> list[Option]:
         """Generate new options and validate against constraints."""
-        options = self.generator.generate(task, constraint)
+        options = self.generator.generate(task, constraint, preferred_strategy=preferred_strategy)
         if constraint:
             self.validator.validate(options, constraint)
         return options
@@ -198,10 +268,161 @@ class MaestroCLI:
         except (EOFError, KeyboardInterrupt):
             return False
 
+    # ------------------------------------------------------------------
+    # Demo mode
+    # ------------------------------------------------------------------
 
-def main() -> None:
+    @staticmethod
+    def _build_demo_scenarios() -> list[dict[str, str]]:
+        """Build the 3 demo scenarios."""
+        return [
+            {
+                "title": "Web Scraping",
+                "task_suggestion": "Scrape 100 dive shop websites and extract pricing",
+                "adjustment_suggestion": "under $0.10",
+                "pick_suggestion": "B",
+            },
+            {
+                "title": "Data Analysis",
+                "task_suggestion": "Analyze 500 rows of customer data for trends",
+                "adjustment_suggestion": "better quality",
+                "pick_suggestion": "yes",
+            },
+            {
+                "title": "API Integration",
+                "task_suggestion": "Fetch pricing from 20 hotel booking APIs",
+                "adjustment_suggestion": "faster",
+                "pick_suggestion": "A",
+            },
+        ]
+
+    def _run_demo(self) -> None:
+        """Run the guided demo walkthrough."""
+        self.console.print(
+            "  [bold cyan]Demo Mode[/bold cyan] — Press Enter to accept suggestions, "
+            "or type your own input.\n"
+        )
+
+        for i, scenario in enumerate(self.demo_scenarios, 1):
+            self.console.print(
+                f"\n  [bold cyan]--- Demo {i}/{len(self.demo_scenarios)}: "
+                f"{scenario['title']} ---[/bold cyan]\n"
+            )
+
+            # Step 1: Get task (with suggestion)
+            task = self._get_task_with_suggestion(scenario["task_suggestion"])
+            if task is None:
+                continue
+
+            # Step 2: Generate and show recommendation
+            self.console.print("\n  [dim]Analyzing task...[/dim]\n")
+            options = self.generator.generate(task)
+            self.console.print(self.negotiator.format_recommendation(options))
+
+            # Step 3: Adjustment (with suggestion)
+            self.console.print(
+                f"\n  [dim]Suggested adjustment: [bold]{scenario['adjustment_suggestion']}[/bold] "
+                f"(press Enter to use)[/dim]"
+            )
+            try:
+                user_input = self.console.input("\n[bold magenta]Maestro>[/bold magenta] ")
+            except (EOFError, KeyboardInterrupt):
+                break
+            adjustment_text = user_input.strip() or scenario["adjustment_suggestion"]
+
+            parsed = self.negotiator.parse_input(adjustment_text, len(options))
+            constraint: Constraint | None = None
+
+            if parsed.intent in (UserIntent.ADJUST_BUDGET, UserIntent.ADJUST_QUALITY, UserIntent.ADJUST_TIME):
+                constraint = self.negotiator.build_constraint_from_adjustment(parsed)
+                options = self._regenerate(task, constraint)
+                self.console.print(self.negotiator.format_options(options))
+            elif parsed.intent == UserIntent.ACCEPT:
+                # User accepted the recommendation directly
+                recommended = next((o for o in options if o.recommended), options[0])
+                try:
+                    self.executor.execute(task, recommended)
+                except KeyboardInterrupt:
+                    self.console.print("\n\n  [yellow]Execution cancelled.[/yellow]\n")
+                self._demo_pause(i)
+                continue
+
+            # Step 4: Pick option (with suggestion)
+            self.console.print(
+                f"\n  [dim]Suggested pick: [bold]{scenario['pick_suggestion']}[/bold] "
+                f"(press Enter to use)[/dim]"
+            )
+            try:
+                user_input = self.console.input("\n[bold magenta]Maestro>[/bold magenta] ")
+            except (EOFError, KeyboardInterrupt):
+                break
+            pick_text = user_input.strip() or scenario["pick_suggestion"]
+
+            pick_parsed = self.negotiator.parse_input(pick_text, len(options))
+            if pick_parsed.intent == UserIntent.ACCEPT:
+                if pick_parsed.chosen_index is not None:
+                    chosen = options[pick_parsed.chosen_index]
+                else:
+                    chosen = next((o for o in options if o.recommended), options[0])
+                try:
+                    self.executor.execute(task, chosen)
+                except KeyboardInterrupt:
+                    self.console.print("\n\n  [yellow]Execution cancelled.[/yellow]\n")
+
+            self._demo_pause(i)
+
+        self.console.print("\n  [bold cyan]Demo complete![/bold cyan] Run without --demo to try your own tasks.\n")
+
+    def _get_task_with_suggestion(self, suggestion: str) -> Task | None:
+        """Get task input, showing a suggestion the user can accept with Enter."""
+        self.console.print(
+            f"  [dim]Suggested task: [bold]{suggestion}[/bold] (press Enter to use)[/dim]"
+        )
+        try:
+            user_input = self.console.input("[bold magenta]Maestro>[/bold magenta] ")
+        except (EOFError, KeyboardInterrupt):
+            return None
+
+        text = user_input.strip() or suggestion
+        task = self.analyzer.analyze(text)
+        if task is None:
+            self.console.print("\n  [yellow]Could not parse that task. Using suggestion instead.[/yellow]")
+            task = self.analyzer.analyze(suggestion)
+        if task is not None:
+            # Show understood message
+            params = task.parameters
+            if task.type == "analysis":
+                self.console.print(
+                    f"\n  [dim]Understood: analyze {params.get('count', '?')} rows"
+                    f" of {params.get('source', 'data')}"
+                    f"{' for ' + str(params.get('analysis_type', '')) if params.get('analysis_type') else ''}[/dim]"
+                )
+            elif task.type == "api":
+                self.console.print(
+                    f"\n  [dim]Understood: call {params.get('count', '?')} "
+                    f"{params.get('source', 'service')} APIs"
+                    f"{' for ' + str(params.get('target', '')) if params.get('target') else ''}[/dim]"
+                )
+            else:
+                self.console.print(
+                    f"\n  [dim]Understood: scrape {params.get('count', '?')} "
+                    f"{params.get('domain', 'websites')}"
+                    f"{' for ' + str(params.get('target', '')) if params.get('target') else ''}[/dim]"
+                )
+        return task
+
+    def _demo_pause(self, current: int) -> None:
+        """Pause between demo scenarios."""
+        if current < len(self.demo_scenarios):
+            try:
+                self.console.input("\n  [dim]Press Enter for next demo...[/dim] ")
+            except (EOFError, KeyboardInterrupt):
+                pass
+
+
+def main(demo: bool = False) -> None:
     """Entry point for `python -m maestro`."""
-    cli = MaestroCLI()
+    cli = MaestroCLI(demo=demo)
     try:
         cli.run()
     except KeyboardInterrupt:

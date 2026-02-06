@@ -68,6 +68,27 @@ class PreferenceLearner:
         """Get all recorded choices."""
         return self._load_history()
 
+    def get_preferred_strategy(self, task_type: str, min_choices: int = 2) -> str | None:
+        """Return the option name the user picks most often for a task type.
+
+        Returns None if fewer than *min_choices* recorded or no single option
+        has a majority (>50%).
+        """
+        history = self._load_history()
+        relevant = [h for h in history if h.get("task_type") == task_type]
+        if len(relevant) < min_choices:
+            return None
+
+        counts: dict[str, int] = {}
+        for entry in relevant:
+            name = entry["chosen"]["name"]
+            counts[name] = counts.get(name, 0) + 1
+
+        top_name = max(counts, key=counts.get)  # type: ignore[arg-type]
+        if counts[top_name] / len(relevant) > 0.5:
+            return top_name
+        return None
+
     def get_summary(self) -> dict:
         """Get a summary of learned preferences."""
         history = self._load_history()

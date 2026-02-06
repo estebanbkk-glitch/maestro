@@ -53,7 +53,7 @@ def test_execution_result():
     r = ExecutionResult(
         option=o, actual_cost=0.95, actual_quality=0.92,
         actual_time_seconds=55, success=True,
-        pages_processed=100, pages_succeeded=92, output_file="test.json",
+        items_processed=100, items_succeeded=92, output_file="test.json",
     )
     assert r.success
     assert r.actual_cost == 0.95

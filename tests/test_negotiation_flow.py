@@ -117,3 +117,57 @@ def test_under_minutes():
     parsed = negotiator.parse_input("under 5 minutes")
     assert parsed.intent == UserIntent.ADJUST_TIME
     assert parsed.value == 300  # 5 minutes in seconds
+
+
+def test_full_flow_api():
+    """Simulate: analyze task → generate options → negotiate → pick."""
+    analyzer = TaskAnalyzer()
+    generator = OptionGenerator()
+    validator = ConstraintValidator()
+    negotiator = Negotiator()
+
+    # Step 1: Parse API task
+    task = analyzer.analyze("Fetch pricing from 20 hotel booking APIs")
+    assert task is not None
+    assert task.type == "api"
+    assert task.parameters["count"] == 20
+
+    # Step 2: Generate initial options
+    options = generator.generate(task)
+    assert len(options) == 4
+
+    # Step 3: User asks for faster
+    parsed = negotiator.parse_input("faster")
+    assert parsed.intent == UserIntent.ADJUST_TIME
+
+    # Step 4: User picks option A
+    parsed = negotiator.parse_input("A", len(options))
+    assert parsed.intent == UserIntent.ACCEPT
+    assert parsed.chosen_index == 0
+
+
+def test_full_flow_analysis():
+    """Simulate: analyze task → generate options → negotiate → pick."""
+    analyzer = TaskAnalyzer()
+    generator = OptionGenerator()
+    validator = ConstraintValidator()
+    negotiator = Negotiator()
+
+    # Step 1: Parse analysis task
+    task = analyzer.analyze("Analyze 500 rows of customer data for trends")
+    assert task is not None
+    assert task.type == "analysis"
+    assert task.parameters["count"] == 500
+
+    # Step 2: Generate initial options
+    options = generator.generate(task)
+    assert len(options) == 4
+
+    # Step 3: User asks for budget constraint
+    parsed = negotiator.parse_input("cheaper")
+    assert parsed.intent == UserIntent.ADJUST_BUDGET
+
+    # Step 4: User picks option A
+    parsed = negotiator.parse_input("A", len(options))
+    assert parsed.intent == UserIntent.ACCEPT
+    assert parsed.chosen_index == 0
