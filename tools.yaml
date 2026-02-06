@@ -1,0 +1,51 @@
+# Tool definitions with real-world pricing
+# Sources: Official API pricing pages as of early 2026
+
+scrapy:
+  name: Scrapy
+  type: crawler
+  cost_per_page: 0.0          # Free, runs locally
+  success_rate: 0.85           # ~85% of sites work without JS rendering
+  speed_pages_per_second: 2.0  # ~2 pages/sec with politeness delays and retries
+  description: "Open-source Python web crawler. Fast and free but can't handle JavaScript-heavy sites."
+
+playwright:
+  name: Playwright
+  type: renderer
+  cost_per_page: 0.01          # Cloud rendering cost (~$0.01/page)
+  success_rate: 0.97           # Handles almost everything
+  speed_pages_per_second: 0.5  # Slower due to full browser rendering + JS wait
+  description: "Headless browser automation. Renders JavaScript but slower and costs more."
+
+deepseek:
+  name: DeepSeek
+  type: llm_extractor
+  cost_per_million_input: 0.27   # DeepSeek V3 pricing
+  cost_per_million_output: 1.10
+  avg_input_tokens_per_page: 500
+  avg_output_tokens_per_page: 150
+  pages_per_second: 3.0           # Batch API throughput
+  quality: 0.88                   # Good at structured extraction
+  description: "Budget LLM for data extraction. Very cheap, good quality for structured tasks."
+
+claude:
+  name: Claude
+  type: llm_extractor
+  cost_per_million_input: 3.00    # Claude Sonnet pricing
+  cost_per_million_output: 15.00
+  avg_input_tokens_per_page: 500
+  avg_output_tokens_per_page: 150
+  pages_per_second: 2.0           # API rate limits
+  quality: 0.96                   # Excellent extraction quality
+  description: "Premium LLM for data extraction. Higher quality but significantly more expensive."
+
+gpt4o:
+  name: GPT-4o
+  type: llm_extractor
+  cost_per_million_input: 2.50
+  cost_per_million_output: 10.00
+  avg_input_tokens_per_page: 500
+  avg_output_tokens_per_page: 150
+  pages_per_second: 2.5           # API throughput
+  quality: 0.93                   # Very good extraction
+  description: "OpenAI's flagship model. Good balance of quality and cost for extraction."
