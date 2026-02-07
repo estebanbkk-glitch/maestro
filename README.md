@@ -207,4 +207,4 @@ MIT — see [LICENSE](LICENSE).
 
 ## Author
 
-**Esteban Sanchez Pieper** — [esteban.bkk@gmail.com](mailto:esteban.bkk@gmail.com)
+**potato, CC, water** — [esteban.bkk@gmail.com](mailto:esteban.bkk@gmail.com)
