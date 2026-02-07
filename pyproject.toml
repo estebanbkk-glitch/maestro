@@ -37,9 +37,9 @@ dev = [
 maestro = "maestro.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/estebansanchez/maestro"
-Repository = "https://github.com/estebansanchez/maestro"
-Issues = "https://github.com/estebansanchez/maestro/issues"
+Homepage = "https://github.com/estebanbkk-glitch/maestro"
+Repository = "https://github.com/estebanbkk-glitch/maestro"
+Issues = "https://github.com/estebanbkk-glitch/maestro/issues"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
